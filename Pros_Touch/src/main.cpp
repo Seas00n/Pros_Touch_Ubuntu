@@ -23,6 +23,7 @@ char Rec_Buf[Buf_Max] = {0};
 char c;
 int rx_count = 0;
 static unsigned long samplingTime = millis();
+
 float p_pressure[18] = {0};
 float init_p_pressure[18] = {0};
 int init_count = 0;
@@ -37,12 +38,17 @@ const uint8_t area3_idx[8] = {0,1,6,7,12,13,16,17};
 float force_data[9] = {0};
 uint16_t force_data_int[9] = {0}; 
 uint8_t force_msg[19] = {0};
+
 int k_float2int = 100;
 int b_float2int = 30000;
-int sent_bytes = 0;
-void Set_handler(void);
+bool is_init_over = false;
+
+
+void Receive_handler(void);
 void Calc_COM(void);
 void Pack_Msg(void);
+void Clear_Buffer(void);
+
 
 
 void loop(){
@@ -53,7 +59,9 @@ void loop(){
         rx_count++; 
     }
     if(millis()-samplingTime>samplingtime){
-        Set_handler();
+        Receive_handler();
+        Pack_Msg();
+        Clear_Buffer();
         // for(int i=0;i<18;i++){
         //     Serial.printf("[%d]:%.2f",i,p_pressure[i]);
         // }
@@ -61,7 +69,8 @@ void loop(){
         // for(int i=0;i<9;i++){
         //     Serial.printf("force_data[%d]:%d",i,force_data[i]);
         // }
-        Serial.write(force_msg, sizeof(force_msg));
+        if(is_init_over)
+            Serial.write(force_msg, sizeof(force_msg));
         samplingTime = millis();
     }
     // if(SerialBT.available()){
@@ -72,7 +81,7 @@ void loop(){
     delay(50);
     digitalWrite(LED_PIN, HIGH);
 }
-void Set_handler(){
+void Receive_handler(){
     int i = 0;
     if(Rec_Buf[0]==0xAA && Rec_Buf[1]==0x02){
         p_pressure[0]=Rec_Buf[2]*256+Rec_Buf[3];
@@ -105,17 +114,14 @@ void Set_handler(){
             init_p_pressure[i] = init_p_pressure[i]/30;
             init_count++;
         }
+        is_init_over = true;
+        // Serial.printf("init_p_pressure_over:%.2f",init_p_pressure[0]);
     }else{
         for(i=0;i<18;i++){
             p_pressure[i]-=init_p_pressure[i];
         }
         Calc_COM();
     }
-    Pack_Msg();
-    for(i=0;i<sizeof(Rec_Buf);i++){
-        Rec_Buf[i] = 0;
-    }
-    rx_count = 0;
 }
 
 void Calc_COM(){
@@ -126,39 +132,49 @@ void Calc_COM(){
     float temp_py = 0;
     for(i=0;i<4;i++){
         j = area1_idx[i];
-        p_pressure[j]+=10;
         temp_f+= p_pressure[j];
         temp_px+=p_pressure[j]*p_pos[j][0];
         temp_py+=p_pressure[j]*p_pos[j][1];
     }
-    force_data[0] = temp_f/1000.0;
+    temp_f = 10;
+    temp_px = temp_f*2;
+    temp_py = temp_f*(-2);
+    force_data[0] = temp_f/10.0;
     force_data[1] = temp_px/temp_f;
     force_data[2] = temp_py/temp_f;
     // Serial.printf("temp_f:%.3f,temp_px:%.3f,temp_py:%.3f",force_data[0],force_data[1],force_data[2]);
+    
+    
     temp_f = 0;
     temp_px = 0;
     temp_py = 0;
     for(i=0;i<6;i++){
         j = area2_idx[i];
-        p_pressure[j]+=10;
         temp_f+= p_pressure[j];
         temp_px+=p_pressure[j]*p_pos[j][0];
         temp_py+=p_pressure[j]*p_pos[j][1];
     }
-    force_data[3] = temp_f/1000.0;
+    temp_f = 15;
+    temp_px = temp_f*2;
+    temp_py = temp_f*(-2);
+    force_data[3] = temp_f/10.0;
     force_data[4] = temp_px/temp_f;
     force_data[5] = temp_py/temp_f;
+
     temp_f = 0;
     temp_px = 0;
     temp_py = 0;
     for(i=0;i<8;i++){
         j = area3_idx[i];
-        p_pressure[j]+=10;
         temp_f+= p_pressure[j];
         temp_px+=p_pressure[j]*p_pos[j][0];
         temp_py+=p_pressure[j]*p_pos[j][1];
     }
-    force_data[6] = temp_f/1000.0;
+    
+    temp_f = 20;
+    temp_px = temp_f*2;
+    temp_py = temp_f*(-2);
+    force_data[6] = temp_f/10.0;
     force_data[7] = temp_px/temp_f;
     force_data[8] = temp_py/temp_f;
     temp_f = 0;
@@ -173,4 +189,11 @@ void Pack_Msg(){
     }
     force_msg[0] = 0xAA;
     memcpy(force_msg+1, force_data_int, sizeof(force_msg)-1);
+}
+
+void Clear_Buffer(){
+  for(int i=0;i<sizeof(Rec_Buf);i++){
+        Rec_Buf[i] = 0;
+  }
+  rx_count = 0;
 }
