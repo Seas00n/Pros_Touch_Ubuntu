@@ -39,7 +39,7 @@ float force_data[9] = {0};
 uint16_t force_data_int[9] = {0}; 
 uint8_t force_msg[19] = {0};
 
-int k_float2int = 100;
+int k_float2int = 10;
 int b_float2int = 30000;
 bool is_init_over = false;
 
