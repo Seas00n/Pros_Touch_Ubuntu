@@ -54,6 +54,15 @@ void debugPrint_RecBuf();
 void debugPrint_ForceInt();
 void debugPrint_Force();
 void SendMsg();
+float halflife_to_damping(float halflife);
+float fast_negexp(float x);
+void simple_spring_damper_exact(
+    float &x,
+    float &v,
+    float x_goal,
+    float halflife,
+    float dt);
+
 void loop()
 {
     digitalWrite(LED_PIN, LOW);
@@ -184,6 +193,9 @@ void Receive_handler()
 
 void Calc_COM()
 {
+    float half_life = 0.02;
+    float dt = 0.15;
+
     int i = 0;
     int j = 0;
     float temp_f = 0;
@@ -191,6 +203,7 @@ void Calc_COM()
     float temp_py = 0;
     float center_x_temp = 0;
     float center_y_temp = 0;
+
     for (i = 0; i < 4; i++)
     {
         j = area1_idx[i];
@@ -207,7 +220,6 @@ void Calc_COM()
         center_x_temp += p_pos[j][0];
         center_y_temp += p_pos[j][1];
     }
-    force_data[0] = temp_f / 100.0;
     if (temp_f < 0.01)
     {
         force_data[0] = 0;
@@ -216,6 +228,8 @@ void Calc_COM()
     }
     else
     {
+        float v = 0;
+        simple_spring_damper_exact(force_data[0], v, temp_f / 100.0f, half_life, dt);
         force_data[1] = temp_px / temp_f;
         force_data[2] = temp_py / temp_f;
     }
@@ -241,7 +255,6 @@ void Calc_COM()
         center_x_temp += p_pos[j][0];
         center_y_temp += p_pos[j][1];
     }
-    force_data[3] = temp_f / 100.0;
     if (temp_f < 0.01)
     {
         force_data[3] = 0;
@@ -250,6 +263,8 @@ void Calc_COM()
     }
     else
     {
+        float v = 0;
+        simple_spring_damper_exact(force_data[3], v, temp_f / 100.0f, half_life, dt);
         force_data[4] = temp_px / temp_f;
         force_data[5] = temp_py / temp_f;
     }
@@ -276,7 +291,6 @@ void Calc_COM()
         center_y_temp += p_pos[j][1];
     }
 
-    force_data[6] = temp_f / 100.0;
     if (temp_f < 0.01)
     {
         force_data[6] = 0;
@@ -285,6 +299,8 @@ void Calc_COM()
     }
     else
     {
+        float v = 0;
+        simple_spring_damper_exact(force_data[6], v, temp_f / 100.0f, half_life, dt);
         force_data[7] = temp_px / temp_f;
         force_data[8] = temp_py / temp_f;
     }
@@ -306,4 +322,29 @@ void Clear_Buffer()
         Rec_Buf[i] = 0;
     }
     rx_count = 0;
+}
+
+float halflife_to_damping(float halflife)
+{
+    return (4.0f * 0.69314718056f) / (halflife + 1e-5f);
+}
+float fast_negexp(float x)
+{
+    return 1.0f / (1.0f + x + 0.48f * x * x + 0.235f * x * x * x);
+}
+void simple_spring_damper_exact(
+    float &x,
+    float &v,
+    float x_goal,
+    float halflife,
+    float dt)
+{
+    float y = halflife_to_damping(halflife) / 2.0f;
+    float j0 = x - x_goal;
+    float j1 = v + j0 * y;
+    float eydt = fast_negexp(y * dt);
+
+    x = eydt * (j0 + j1 * dt) + x_goal;
+    v = eydt * (v - j1 * y * dt);
+    // Serial.printf("%.3f", x);
 }
