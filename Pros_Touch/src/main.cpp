@@ -17,7 +17,7 @@ void setup()
 
 #define Buf_Max 80
 #define samplingtime 50
-const byte right_left_side = 0x02;
+const byte right_left_side = 0x01;
 
 char Rec_Buf[Buf_Max] = {0};
 char c;
@@ -54,6 +54,7 @@ void debugPrint_RecBuf();
 void debugPrint_ForceInt();
 void debugPrint_Force();
 void SendMsg();
+void SendMsg19();
 float halflife_to_damping(float halflife);
 float fast_negexp(float x);
 void simple_spring_damper_exact(
@@ -75,14 +76,14 @@ void loop()
     if (millis() - samplingTime > samplingtime)
     {
         Receive_handler();
-        // debugPrint_p_pressure();
+        debugPrint_p_pressure();
         // debugPrint_p_pressure_init();
         // debugPrint_RecBuf();
         // debugPrint_ForceInt();
         // debugPrint_Force();
         Pack_Msg();
         Clear_Buffer();
-        SendMsg();
+        // SendMsg();
         samplingTime = millis();
     }
     // delay(20);
